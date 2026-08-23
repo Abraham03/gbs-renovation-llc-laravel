@@ -15,8 +15,7 @@ class ContactController extends Controller
         $data = $request->validated();
 
         // 2. Despachamos el correo electrónico a la cuenta oficial de GBS
-        //Mail::to('gbsrenovationllc@gmail.com')->send(new ContactSubmitted($data));
-        Mail::to('achave8627@gmail.com')->send(new ContactSubmitted($data));
+        Mail::to('gbsrenovationllc@gmail.com')->send(new ContactSubmitted($data));
 
         // 3. Retornamos la respuesta unificada que Angular leerá directamente
         return response()->json([

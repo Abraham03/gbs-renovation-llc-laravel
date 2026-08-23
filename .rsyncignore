@@ -1,0 +1,35 @@
+# Archivos que NO se sincronizan al servidor.
+# Ojo: rsync --delete (sin --delete-excluded) PROTEGE estas rutas en el destino,
+# es decir, no las toca ni las borra. Es lo que mantiene a salvo produccion.
+
+# Metadatos de git y CI
+.git/
+.gitlab-ci.yml
+.rsyncignore
+.gitignore
+.gitattributes
+.editorconfig
+
+# El .env de produccion vive solo en el servidor
+.env
+.env.example
+
+# Solo para desarrollo local
+node_modules/
+tests/
+phpunit.xml
+compose.yaml
+.npmrc
+
+# Existe solo en el servidor (bloquea el acceso web a /api/*).
+# La barra inicial lo ancla a la raiz: public/.htaccess SI debe sincronizarse,
+# porque contiene las reglas de rewrite de Laravel.
+/.htaccess
+
+# Subidas de usuarios, logs, cache y sesiones
+storage/
+database/database.sqlite
+
+# Symlink hacia storage/app/public: el del servidor debe conservarse
+/public/storage
+/public/hot

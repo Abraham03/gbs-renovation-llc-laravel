@@ -1,58 +1,125 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# GBS Renovations LLC — API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API REST que da servicio al sitio de [GBS Renovations LLC](https://gbsrenovationsllc.services).
+Gestiona el catálogo de proyectos de remodelación (con imágenes y videos), las categorías,
+el formulario de contacto y la autenticación del panel administrativo.
 
-## About Laravel
+- **Producción:** https://api.gbsrenovationsllc.services
+- **Frontend:** Angular, en https://gbsrenovationsllc.services
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| | |
+|---|---|
+| Framework | Laravel 13 (PHP 8.3) |
+| Autenticación | JWT (`tymon/jwt-auth`) |
+| Base de datos | MySQL en producción, SQLite en local |
+| Imágenes | `intervention/image` — reescala a 1200px y convierte a WebP |
+| Video | `pbmedia/laravel-ffmpeg` — compresión H.264 en cola |
+| Assets | Vite 8 + Tailwind 4 |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Instalación local
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer setup      # instala deps, copia .env, genera APP_KEY, migra y compila assets
+php artisan jwt:secret
+composer dev        # levanta servidor + worker de colas + logs + vite
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+`composer dev` deja la API en http://localhost:8000. El frontend de Angular corre en
+http://localhost:4200, que ya está permitido en [config/cors.php](config/cors.php).
 
-## Contributing
+Alternativa con Docker: `./vendor/bin/sail up` usando [compose.yaml](compose.yaml)
+(MySQL, Redis, RabbitMQ y Mailpit).
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Variables de entorno
 
-## Code of Conduct
+Además de las de [.env.example](.env.example), en producción hacen falta:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+| Variable | Para qué |
+|---|---|
+| `JWT_SECRET` | Firma de los tokens. Generar con `php artisan jwt:secret` |
+| `FRONTEND_URL` | Origen permitido por CORS (el dominio del sitio Angular) |
+| `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Conexión a MySQL |
+| `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | SMTP del formulario de contacto |
 
-## Security Vulnerabilities
+El `.env` de producción vive **solo en el servidor** y está excluido del despliegue.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Endpoints
 
-## License
+Definidos en [routes/api.php](routes/api.php). Todos bajo el prefijo `/api`.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Públicos
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/auth/login` | Devuelve el token JWT |
+| `POST` | `/api/auth/refresh` | Renueva el token |
+| `POST` | `/api/contact` | Envía el formulario de contacto por correo |
+| `GET` | `/api/projects` | Lista de proyectos |
+| `GET` | `/api/projects/{project}` | Detalle de un proyecto |
+| `GET` | `/api/categories` | Lista de categorías |
+
+### Protegidos (`Authorization: Bearer <token>`)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/auth/logout` | Invalida el token |
+| `POST` | `/api/auth/me` | Datos del usuario autenticado |
+| `POST` | `/api/projects` | Crea un proyecto con thumbnail y galería |
+| `POST` | `/api/projects/{project}` | Actualiza un proyecto |
+| `DELETE` | `/api/projects/{project}` | Elimina un proyecto y sus archivos |
+| `DELETE` | `/api/project-media/{id}` | Elimina una foto o video de la galería |
+| `POST` | `/api/categories` | Crea una categoría |
+| `PUT` | `/api/categories/{category}` | Actualiza una categoría |
+| `DELETE` | `/api/categories/{category}` | Elimina una categoría |
+
+> Las actualizaciones de proyecto usan `POST` en vez de `PUT` porque PHP no parsea
+> `multipart/form-data` en peticiones `PUT`.
+
+`GET /up` es el healthcheck de Laravel y lo usa el pipeline de despliegue.
+
+## Almacenamiento de archivos
+
+Hay dos conjuntos de media y conviene no confundirlos:
+
+- **`public/images/` y `public/videos/`** — catálogo histórico, versionado en git y
+  cargado por `OldProjectsSeeder` desde [database/data/projects.json](database/data/projects.json).
+  Es estático; ningún código escribe ahí.
+- **`storage/app/public/projects/`** — todo lo que se sube desde el panel
+  (`thumbnails/`, `gallery/`, `videos/`). Se sirve por el symlink `public/storage`,
+  así que en el navegador aparece como `/storage/projects/...`.
+  **No está versionado y el despliegue nunca lo toca.**
+
+Si el symlink falta: `php artisan storage:link`.
+
+## Despliegue
+
+Automático vía [.gitlab-ci.yml](.gitlab-ci.yml). Cada push a `main` dispara:
+
+1. **`build:vendor`** — `composer install --no-dev` en el runner.
+2. **`build:assets`** — `npm run build` (Vite).
+3. **`deploy:production`** — `rsync` al servidor + limpieza y recreación de cachés,
+   terminando con un healthcheck contra `/up`.
+4. **`migrate:production`** — **manual**. Aparece con un botón ▶ en el pipeline y solo
+   corre si le das clic. Ejecuta `php artisan migrate --force`, que aplica únicamente
+   las migraciones pendientes; si no hay ninguna, responde *"Nothing to migrate"*.
+   Es manual a propósito, porque una migración destructiva no tiene rollback automático.
+
+[.rsyncignore](.rsyncignore) define qué se excluye del despliegue. Lo importante:
+`.env`, `storage/` y el symlink `public/storage` quedan intactos en el servidor,
+así que ni la configuración ni los archivos subidos por usuarios se pierden.
+
+Variables requeridas en GitLab (Settings → CI/CD → Variables): `SSH_PRIVATE_KEY`
+(clave privada en base64, una sola línea), `SSH_HOST`, `SSH_USER` y `SSH_PORT`.
+
+### Procesamiento de video
+
+La compresión de video se despacha a una cola (`QUEUE_CONNECTION=database`), así que
+el servidor necesita un worker. En hosting compartido se resuelve con un cron:
+
+```
+cd /ruta/al/proyecto && php artisan queue:work --stop-when-empty --tries=3 --max-time=280
+```
+
+Requiere los binarios `ffmpeg` y `ffprobe` instalados en el host.

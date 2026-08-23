@@ -15,8 +15,12 @@ return [
     'allowed_methods' => ['*'],
 
     // 3. ¿Quién tiene permiso de hacer peticiones a tu API?
-    // Aquí ponemos el puerto exacto donde corre el servidor de desarrollo de Angular
-    'allowed_origins' => ['http://localhost:4200'],
+    // El origen de producción sale de FRONTEND_URL en el .env, así que cada
+    // entorno define el suyo sin tocar código.
+    'allowed_origins' => array_values(array_filter([
+        env('FRONTEND_URL'),      // https://gbsrenovationsllc.services
+        'http://localhost:4200',  // servidor de desarrollo de Angular
+    ])),
 
     'allowed_origins_patterns' => [],
 
